@@ -11,75 +11,29 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/ekm/mailbot/internal/bootstrap"
 	"github.com/ekm/mailbot/internal/config"
-	"github.com/ekm/mailbot/internal/handler"
-	"github.com/ekm/mailbot/internal/mailer"
-	"github.com/ekm/mailbot/internal/middleware"
-	"github.com/ekm/mailbot/internal/store"
 )
 
 func main() {
-	if err := run(); err != nil {
+	cfg, err := config.Load()
+	ExitOnErr(err)
+	logger := newLogger(cfg.Log.Level)
+	srv, srvErr := bootstrap.MakeServer(cfg, logger)
+	ExitOnErr(srvErr)
+	ExitOnErr(serve(srv, logger))
+}
+
+func ExitOnErr(err error) {
+	if err != nil {
 		fmt.Fprintf(os.Stderr, "mailbot: %v\n", err)
 		os.Exit(1)
 	}
 }
 
-func run() error {
-	cfg, err := config.Load()
-	if err != nil {
-		return err
-	}
-
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: cfg.LogLevel}))
-
-	fileStore, err := store.NewFileStore(cfg.StorageDir)
-	if err != nil {
-		return err
-	}
-
-	var m mailer.Mailer
-	if cfg.SMTPEnabled {
-		m = mailer.NewSMTPMailer(mailer.SMTPConfig{
-			Host:     cfg.SMTPHost,
-			Port:     cfg.SMTPPort,
-			User:     cfg.SMTPUser,
-			Pass:     cfg.SMTPPass,
-			From:     cfg.SMTPFrom,
-			To:       cfg.SMTPTo,
-			StartTLS: cfg.SMTPStartTLS,
-		})
-		logger.Info("SMTP enabled", "host", cfg.SMTPHost, "port", cfg.SMTPPort)
-	} else {
-		m = mailer.NewNoopMailer(logger)
-		logger.Info("SMTP disabled: using noop mailer")
-	}
-
-	contactHandler := handler.New(m, fileStore, logger)
-
-	mux := http.NewServeMux()
-	mux.Handle("/contact", contactHandler)
-
-	// Middleware chain (outermost → innermost):
-	// Recovery → Logger → RateLimiter → mux
-	rateLimiter := middleware.NewRateLimiter(time.Duration(cfg.RateLimitInterval) * time.Second)
-	chain := middleware.Recovery(logger)(
-		middleware.Logger(logger)(
-			rateLimiter.Middleware(mux),
-		),
-	)
-
-	srv := &http.Server{
-		Addr:         cfg.ListenAddr,
-		Handler:      chain,
-		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 30 * time.Second,
-		IdleTimeout:  60 * time.Second,
-	}
-
-	// Graceful shutdown on SIGINT / SIGTERM.
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer stop()
+// serve starts the server and blocks until it shuts down cleanly.
+func serve(srv *http.Server, logger *slog.Logger) error {
+	ctx := signalContext()
 
 	done := make(chan struct{})
 	go func() {
@@ -93,7 +47,7 @@ func run() error {
 		}
 	}()
 
-	logger.Info("starting server", "addr", cfg.ListenAddr)
+	logger.Info("starting server", "addr", srv.Addr)
 	if err := srv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
 		return fmt.Errorf("server: %w", err)
 	}
@@ -101,4 +55,23 @@ func run() error {
 	<-done
 	logger.Info("server stopped")
 	return nil
+}
+
+// signalContext returns a context that is cancelled on SIGINT or SIGTERM.
+func signalContext() context.Context {
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	done := make(chan struct{})
+	defer close(done)
+	go func() {
+		defer cancel()
+		<-ctx.Done()
+		println("received shutdown signal")
+		time.Sleep(15 * time.Second)
+		os.Exit(0)
+	}()
+	return ctx
+}
+
+func newLogger(level slog.Level) *slog.Logger {
+	return slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level}))
 }

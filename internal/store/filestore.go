@@ -6,21 +6,19 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/ekm/mailbot/internal/config"
 	"github.com/ekm/mailbot/internal/submission"
 )
 
 // FileStore writes each submission as a plain-text file in a directory.
 type FileStore struct {
-	dir string
+	cfg config.StorageConfig
 }
 
-// NewFileStore constructs a FileStore, creating dir if it does not exist.
-// Returns an error if the directory cannot be created.
-func NewFileStore(dir string) (*FileStore, error) {
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return nil, fmt.Errorf("create storage dir %s: %w", dir, err)
-	}
-	return &FileStore{dir: dir}, nil
+// NewFileStore assembles a FileStore. The caller is responsible for ensuring
+// cfg.Dir exists before calling Save (see bootstrap.MakeFileStore).
+func NewFileStore(cfg config.StorageConfig) *FileStore {
+	return &FileStore{cfg: cfg}
 }
 
 // Save writes the submission to a new file in the storage directory.
@@ -32,7 +30,7 @@ func (fs *FileStore) Save(ctx context.Context, s submission.Submission) error {
 	}
 
 	name := submission.Filename(s)
-	finalPath := filepath.Join(fs.dir, name)
+	finalPath := filepath.Join(fs.cfg.Dir, name)
 	tmpPath := finalPath + ".tmp"
 
 	if err := os.WriteFile(tmpPath, []byte(submission.Format(s)), 0o644); err != nil {

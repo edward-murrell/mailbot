@@ -9,22 +9,47 @@ import (
 	"github.com/caarlos0/env/v11"
 )
 
-// Config holds all runtime configuration parsed from environment variables.
+// Config is the top-level runtime configuration, parsed from environment variables.
 // It is immutable after construction via Load.
 type Config struct {
-	ListenAddr        string `env:"LISTEN_ADDR"         envDefault:":8080"`
-	SMTPEnabled       bool   `env:"SMTP_ENABLED"        envDefault:"true"`
-	SMTPHost          string `env:"SMTP_HOST"`
-	SMTPPort          string `env:"SMTP_PORT"           envDefault:"587"`
-	SMTPUser          string `env:"SMTP_USER"`
-	SMTPPass          string `env:"SMTP_PASS"`
-	SMTPFrom          string `env:"SMTP_FROM"`
-	SMTPTo            string `env:"SMTP_TO"`
-	SMTPStartTLS      bool   `env:"SMTP_STARTTLS"       envDefault:"true"`
-	StorageDir        string `env:"STORAGE_DIR,required"`
-	RateLimitInterval int    `env:"RATE_LIMIT_INTERVAL" envDefault:"5"`
-	LogLevelRaw string `env:"LOG_LEVEL" envDefault:"info"`
-	LogLevel    slog.Level // computed from LogLevelRaw in Load
+	Server    ServerConfig
+	SMTP      SMTPConfig      `envPrefix:"SMTP_"`
+	Storage   StorageConfig   `envPrefix:"STORAGE_"`
+	RateLimit RateLimitConfig `envPrefix:"RATE_LIMIT_"`
+	Log       LogConfig
+}
+
+// ServerConfig holds HTTP server settings.
+type ServerConfig struct {
+	ListenAddr string `env:"LISTEN_ADDR" envDefault:":8080"`
+}
+
+// SMTPConfig holds outbound mail settings.
+type SMTPConfig struct {
+	Enabled  bool   `env:"ENABLED"  envDefault:"true"`
+	Host     string `env:"HOST"`
+	Port     string `env:"PORT"     envDefault:"587"`
+	User     string `env:"USER"`
+	Pass     string `env:"PASS"`
+	From     string `env:"FROM"`
+	To       string `env:"TO"`
+	StartTLS bool   `env:"STARTTLS" envDefault:"true"`
+}
+
+// StorageConfig holds file-storage settings.
+type StorageConfig struct {
+	Dir string `env:"DIR,required"`
+}
+
+// RateLimitConfig holds per-IP rate limiting settings.
+type RateLimitConfig struct {
+	Interval int `env:"INTERVAL" envDefault:"5"` // seconds between allowed requests per IP
+}
+
+// LogConfig holds logging settings.
+type LogConfig struct {
+	LevelRaw string     `env:"LOG_LEVEL" envDefault:"info"`
+	Level    slog.Level // computed from LevelRaw in Load
 }
 
 // Load parses environment variables into a Config, applies defaults, and validates.
@@ -37,33 +62,33 @@ func Load() (*Config, error) {
 
 	var errs []string
 
-	// Parse log level
-	switch strings.ToLower(cfg.LogLevelRaw) {
+	// Parse log level from raw string.
+	switch strings.ToLower(cfg.Log.LevelRaw) {
 	case "debug":
-		cfg.LogLevel = slog.LevelDebug
+		cfg.Log.Level = slog.LevelDebug
 	case "info":
-		cfg.LogLevel = slog.LevelInfo
+		cfg.Log.Level = slog.LevelInfo
 	case "warn":
-		cfg.LogLevel = slog.LevelWarn
+		cfg.Log.Level = slog.LevelWarn
 	case "error":
-		cfg.LogLevel = slog.LevelError
+		cfg.Log.Level = slog.LevelError
 	default:
-		errs = append(errs, fmt.Sprintf("LOG_LEVEL: unknown level %q", cfg.LogLevelRaw))
+		errs = append(errs, fmt.Sprintf("LOG_LEVEL: unknown level %q", cfg.Log.LevelRaw))
 	}
 
-	// Validate rate limit
-	if cfg.RateLimitInterval < 1 {
+	// Validate rate limit interval.
+	if cfg.RateLimit.Interval < 1 {
 		errs = append(errs, "RATE_LIMIT_INTERVAL: must be a positive integer")
 	}
 
-	// SMTP credentials are only required when SMTP is enabled
-	if cfg.SMTPEnabled {
+	// SMTP credentials are only required when SMTP is enabled.
+	if cfg.SMTP.Enabled {
 		for _, pair := range []struct{ name, val string }{
-			{"SMTP_HOST", cfg.SMTPHost},
-			{"SMTP_USER", cfg.SMTPUser},
-			{"SMTP_PASS", cfg.SMTPPass},
-			{"SMTP_FROM", cfg.SMTPFrom},
-			{"SMTP_TO", cfg.SMTPTo},
+			{"SMTP_HOST", cfg.SMTP.Host},
+			{"SMTP_USER", cfg.SMTP.User},
+			{"SMTP_PASS", cfg.SMTP.Pass},
+			{"SMTP_FROM", cfg.SMTP.From},
+			{"SMTP_TO", cfg.SMTP.To},
 		} {
 			if pair.val == "" {
 				errs = append(errs, pair.name+" is required when SMTP_ENABLED=true")

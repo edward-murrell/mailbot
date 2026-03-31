@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ekm/mailbot/internal/config"
 	"github.com/ekm/mailbot/internal/store"
 	"github.com/ekm/mailbot/internal/submission"
 )
@@ -17,11 +18,7 @@ var fixedTime = time.Date(2026, 3, 31, 14, 5, 22, 0, time.UTC)
 
 func TestFileStore_Save(t *testing.T) {
 	dir := t.TempDir()
-	fs, err := store.NewFileStore(dir)
-	if err != nil {
-		t.Fatalf("NewFileStore: %v", err)
-	}
-
+	fs := store.NewFileStore(config.StorageConfig{Dir: dir})
 	sub := submission.New("Jane Smith", "jane@example.com", "+61400000000", "Website inquiry", "Hello there", "Support", fixedTime)
 
 	if err := fs.Save(context.Background(), sub); err != nil {
@@ -33,7 +30,7 @@ func TestFileStore_Save(t *testing.T) {
 		t.Fatalf("ReadDir: %v", err)
 	}
 	if len(entries) != 1 {
-		t.Fatalf("expected 1 file in %s, got %d", dir, len(entries))
+		t.Fatalf("expected 1 file, got %d", len(entries))
 	}
 
 	name := entries[0].Name()
@@ -45,21 +42,16 @@ func TestFileStore_Save(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ReadFile: %v", err)
 	}
-
-	want := submission.Format(sub)
-	if string(content) != want {
-		t.Errorf("file content mismatch\ngot:\n%s\nwant:\n%s", content, want)
+	if string(content) != submission.Format(sub) {
+		t.Errorf("file content mismatch\ngot:\n%s\nwant:\n%s", content, submission.Format(sub))
 	}
 }
 
 func TestFileStore_Save_NoTmpFileLeft(t *testing.T) {
 	dir := t.TempDir()
-	fs, err := store.NewFileStore(dir)
-	if err != nil {
-		t.Fatalf("NewFileStore: %v", err)
-	}
-
+	fs := store.NewFileStore(config.StorageConfig{Dir: dir})
 	sub := submission.New("", "jane@example.com", "", "Hi", "", "", fixedTime)
+
 	if err := fs.Save(context.Background(), sub); err != nil {
 		t.Fatalf("Save: %v", err)
 	}
@@ -76,29 +68,12 @@ func TestFileStore_Save_NoTmpFileLeft(t *testing.T) {
 }
 
 func TestFileStore_Save_ContextCancelled(t *testing.T) {
-	dir := t.TempDir()
-	fs, err := store.NewFileStore(dir)
-	if err != nil {
-		t.Fatalf("NewFileStore: %v", err)
-	}
-
+	fs := store.NewFileStore(config.StorageConfig{Dir: t.TempDir()})
 	ctx, cancel := context.WithCancel(context.Background())
-	cancel() // cancel before Save
+	cancel()
 
 	sub := submission.New("", "jane@example.com", "", "Hi", "", "", fixedTime)
 	if err := fs.Save(ctx, sub); err == nil {
 		t.Error("expected error with cancelled context, got nil")
-	}
-}
-
-func TestNewFileStore_CreatesDir(t *testing.T) {
-	base := t.TempDir()
-	newDir := filepath.Join(base, "submissions", "nested")
-
-	if _, err := store.NewFileStore(newDir); err != nil {
-		t.Fatalf("NewFileStore should create missing dir: %v", err)
-	}
-	if _, err := os.Stat(newDir); err != nil {
-		t.Errorf("directory not created: %v", err)
 	}
 }

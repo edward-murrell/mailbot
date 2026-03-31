@@ -9,28 +9,18 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ekm/mailbot/internal/config"
 	"github.com/ekm/mailbot/internal/submission"
 )
-
-// SMTPConfig holds connection parameters for the SMTP mailer.
-type SMTPConfig struct {
-	Host     string
-	Port     string
-	User     string
-	Pass     string
-	From     string
-	To       string
-	StartTLS bool
-}
 
 // SMTPMailer sends email via an authenticated SMTP server.
 // It is context-aware: dial honours context deadlines and cancellation.
 type SMTPMailer struct {
-	cfg SMTPConfig
+	cfg config.SMTPConfig
 }
 
 // NewSMTPMailer constructs an SMTPMailer.
-func NewSMTPMailer(cfg SMTPConfig) *SMTPMailer {
+func NewSMTPMailer(cfg config.SMTPConfig) *SMTPMailer {
 	return &SMTPMailer{cfg: cfg}
 }
 
