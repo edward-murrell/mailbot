@@ -4,7 +4,14 @@ services:
     ports:
       - "8080:8080"
     environment:
-      SMTP_ENABLED: "false"
+      SMTP_ENABLED: true
+      SMTP_HOST: mailhog
+      SMTP_PORT: 1025
+      SMTP_USER: test
+      SMTP_PASS: test,
+      SMTP_FROM: test@example.com
+      SMTP_TO: inbox@example.com
+      SMTP_SECURITY: none
       STORAGE_DIR: /data
       LISTEN_ADDR: ":8080"
       LOG_LEVEL: debug
@@ -17,7 +24,7 @@ services:
 
   # Optional: enable SMTP testing by setting SMTP_ENABLED=true and pointing
   # SMTP_HOST=mailhog, SMTP_PORT=1025, SMTP_USER=test, SMTP_PASS=test,
-  # SMTP_FROM=test@example.com, SMTP_TO=inbox@example.com, SMTP_STARTTLS=false
+  # SMTP_FROM=test@example.com, SMTP_TO=inbox@example.com, SMTP_SECURITY=none
   mailhog:
     image: mailhog/mailhog:latest
     ports:

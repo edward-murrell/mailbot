@@ -80,7 +80,7 @@ mailbot/
 | `SMTP_PASS`           | SMTP password                                        | required       |
 | `SMTP_FROM`           | Envelope from address                                | required       |
 | `SMTP_TO`             | Destination address for contact form submissions     | required       |
-| `SMTP_STARTTLS`       | Use STARTTLS (`true`/`false`)                        | `true`         |
+| `SMTP_SECURITY`       | `starttls` (port 587), `ssl` (port 465), `none`     | `starttls`     |
 | `SMTP_ENABLED`        | Set to `false` to disable SMTP (local dev/testing)  | `true`         |
 | `STORAGE_DIR`         | Directory to write submission text files into        | required       |
 | `RATE_LIMIT_INTERVAL` | Minimum seconds between submissions per IP           | `5`            |
@@ -120,7 +120,7 @@ Create `STORAGE_DIR` on startup if it does not exist.
 - Structured logging with `log/slog` (stdlib, no external logging dependency)
 - Errors wrapped with `fmt.Errorf("context: %w", err)`
 - HTTP handlers are thin — decode, validate, call service, encode response
-- SMTP uses `net/smtp` from stdlib with a manual `DialContext` for context support. STARTTLS=true dials plain TCP and upgrades; STARTTLS=false dials with `tls.Dialer` for implicit TLS (port 465).
+- SMTP uses `net/smtp` from stdlib with a manual `DialContext` for context support. Three security modes via `SMTP_SECURITY`: `starttls` dials plain TCP and upgrades, `ssl` dials with `tls.Dialer` for implicit TLS (port 465), `none` dials plain TCP without TLS (local dev).
 - Config uses `github.com/caarlos0/env/v11` with struct tags — no manual `os.Getenv` loops
 - Pass `context.Context` as the first argument through to SMTP and file operations
 

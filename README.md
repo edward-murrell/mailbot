@@ -59,7 +59,7 @@ All configuration is via environment variables.
 | `SMTP_PASS`           | required* | SMTP password |
 | `SMTP_FROM`           | required* | Envelope from address |
 | `SMTP_TO`             | required* | Destination address |
-| `SMTP_STARTTLS`       | `true`    | `true` = STARTTLS (port 587), `false` = implicit TLS (port 465) |
+| `SMTP_SECURITY`       | `starttls`| `starttls` (port 587), `ssl` (port 465), `none` (no TLS, local dev) |
 | `STORAGE_DIR`         | required  | Directory to write submission files |
 | `RATE_LIMIT_INTERVAL` | `5`       | Seconds between allowed requests per IP |
 | `LOG_LEVEL`           | `info`    | `debug` / `info` / `warn` / `error` |
@@ -107,7 +107,7 @@ SMTP_USER=test \
 SMTP_PASS=test \
 SMTP_FROM=test@example.com \
 SMTP_TO=inbox@example.com \
-SMTP_STARTTLS=false \
+SMTP_SECURITY=none \
 STORAGE_DIR=/tmp/mailbot-submissions \
 go run ./cmd/mailbot
 ```

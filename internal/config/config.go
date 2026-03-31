@@ -24,6 +24,13 @@ type ServerConfig struct {
 	ListenAddr string `env:"LISTEN_ADDR" envDefault:":8080"`
 }
 
+// SMTP security modes for SMTPConfig.Security.
+const (
+	SMTPSecurityStartTLS = "starttls" // Plain TCP, then STARTTLS upgrade (port 587)
+	SMTPSecuritySSL      = "ssl"      // Implicit TLS from the start (port 465)
+	SMTPSecurityNone     = "none"     // Plain TCP, no TLS (local dev / MailHog)
+)
+
 // SMTPConfig holds outbound mail settings.
 type SMTPConfig struct {
 	Enabled  bool   `env:"ENABLED"  envDefault:"true"`
@@ -33,7 +40,7 @@ type SMTPConfig struct {
 	Pass     string `env:"PASS"`
 	From     string `env:"FROM"`
 	To       string `env:"TO"`
-	StartTLS bool   `env:"STARTTLS" envDefault:"true"`
+	Security string `env:"SECURITY" envDefault:"starttls"`
 }
 
 // StorageConfig holds file-storage settings.
@@ -79,6 +86,14 @@ func Load() (*Config, error) {
 	// Validate rate limit interval.
 	if cfg.RateLimit.Interval < 1 {
 		errs = append(errs, "RATE_LIMIT_INTERVAL: must be a positive integer")
+	}
+
+	// Validate SMTP security mode.
+	cfg.SMTP.Security = strings.ToLower(cfg.SMTP.Security)
+	switch cfg.SMTP.Security {
+	case SMTPSecurityStartTLS, SMTPSecuritySSL, SMTPSecurityNone:
+	default:
+		errs = append(errs, fmt.Sprintf("SMTP_SECURITY: must be starttls, ssl, or none (got %q)", cfg.SMTP.Security))
 	}
 
 	// SMTP credentials are only required when SMTP is enabled.
