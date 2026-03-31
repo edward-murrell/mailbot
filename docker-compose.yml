@@ -1,0 +1,28 @@
+services:
+  mailbot:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      SMTP_ENABLED: "false"
+      STORAGE_DIR: /data
+      LISTEN_ADDR: ":8080"
+      LOG_LEVEL: debug
+      RATE_LIMIT_INTERVAL: "1"
+    volumes:
+      - submissions:/data
+    user: "65532:65532"
+    depends_on:
+      - mailhog
+
+  # Optional: enable SMTP testing by setting SMTP_ENABLED=true and pointing
+  # SMTP_HOST=mailhog, SMTP_PORT=1025, SMTP_USER=test, SMTP_PASS=test,
+  # SMTP_FROM=test@example.com, SMTP_TO=inbox@example.com, SMTP_STARTTLS=false
+  mailhog:
+    image: mailhog/mailhog:latest
+    ports:
+      - "1025:1025"  # SMTP
+      - "8025:8025"  # Web UI: http://localhost:8025
+
+volumes:
+  submissions:

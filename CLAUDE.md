@@ -120,7 +120,8 @@ Create `STORAGE_DIR` on startup if it does not exist.
 - Structured logging with `log/slog` (stdlib, no external logging dependency)
 - Errors wrapped with `fmt.Errorf("context: %w", err)`
 - HTTP handlers are thin — decode, validate, call service, encode response
-- Use `net/smtp` from stdlib; use `gopkg.in/gomail.v2` only if STARTTLS handling with stdlib becomes unwieldy
+- SMTP uses `net/smtp` from stdlib with a manual `DialContext` for context support. STARTTLS=true dials plain TCP and upgrades; STARTTLS=false dials with `tls.Dialer` for implicit TLS (port 465).
+- Config uses `github.com/caarlos0/env/v11` with struct tags — no manual `os.Getenv` loops
 - Pass `context.Context` as the first argument through to SMTP and file operations
 
 ## Middleware
