@@ -12,7 +12,7 @@ import (
 var fixedTime = time.Date(2026, 3, 31, 14, 5, 22, 0, time.UTC)
 
 func TestNew_TrimsWhitespace(t *testing.T) {
-	s := submission.New("  Jane  ", "  jane@example.com  ", " +61400000000 ", "  Hi  ", "  body  ", "  reason  ", fixedTime)
+	s := submission.New("  Jane  ", "  jane@example.com  ", " +61400000000 ", "  Hi  ", "  body  ", "  reason  ", "", fixedTime)
 	if s.Name != "Jane" {
 		t.Errorf("Name = %q, want %q", s.Name, "Jane")
 	}
@@ -25,7 +25,7 @@ func TestNew_TrimsWhitespace(t *testing.T) {
 }
 
 func TestNew_Immutable(t *testing.T) {
-	s := submission.New("Jane", "jane@example.com", "", "Hi", "", "", fixedTime)
+	s := submission.New("Jane", "jane@example.com", "", "Hi", "", "", "", fixedTime)
 	// Reassigning the local variable does not mutate the original.
 	// This test documents intent: Submission is a value type.
 	other := s
@@ -43,43 +43,43 @@ func TestValidate(t *testing.T) {
 	}{
 		{
 			name: "valid: email and subject",
-			sub:  submission.New("Jane", "jane@example.com", "", "Hello", "", "", fixedTime),
+			sub:  submission.New("Jane", "jane@example.com", "", "Hello", "", "", "", fixedTime),
 		},
 		{
 			name: "valid: phone only and body only",
-			sub:  submission.New("", "", "+61400000000", "", "Some body", "", fixedTime),
+			sub:  submission.New("", "", "+61400000000", "", "Some body", "", "", fixedTime),
 		},
 		{
 			name: "valid: email and reason only",
-			sub:  submission.New("", "jane@example.com", "", "", "", "support", fixedTime),
+			sub:  submission.New("", "jane@example.com", "", "", "", "support", "", fixedTime),
 		},
 		{
 			name: "valid: both email and phone with all content fields",
-			sub:  submission.New("Jane", "jane@example.com", "+61400000000", "Hi", "body", "reason", fixedTime),
+			sub:  submission.New("Jane", "jane@example.com", "+61400000000", "Hi", "body", "reason", "", fixedTime),
 		},
 		{
 			name:     "invalid: no contact info",
-			sub:      submission.New("Jane", "", "", "Hello", "", "", fixedTime),
+			sub:      submission.New("Jane", "", "", "Hello", "", "", "", fixedTime),
 			wantKeys: []string{"email"},
 		},
 		{
 			name:     "invalid: malformed email",
-			sub:      submission.New("Jane", "not-an-email", "", "Hello", "", "", fixedTime),
+			sub:      submission.New("Jane", "not-an-email", "", "Hello", "", "", "", fixedTime),
 			wantKeys: []string{"email"},
 		},
 		{
 			name:     "invalid: email with missing TLD",
-			sub:      submission.New("Jane", "user@", "", "Hello", "", "", fixedTime),
+			sub:      submission.New("Jane", "user@", "", "Hello", "", "", "", fixedTime),
 			wantKeys: []string{"email"},
 		},
 		{
 			name:     "invalid: no content fields",
-			sub:      submission.New("Jane", "jane@example.com", "", "", "", "", fixedTime),
+			sub:      submission.New("Jane", "jane@example.com", "", "", "", "", "", fixedTime),
 			wantKeys: []string{"subject"},
 		},
 		{
 			name:     "invalid: both contact and content missing",
-			sub:      submission.New("", "", "", "", "", "", fixedTime),
+			sub:      submission.New("", "", "", "", "", "", "", fixedTime),
 			wantKeys: []string{"email", "subject"},
 		},
 	}
@@ -106,7 +106,7 @@ func TestValidate(t *testing.T) {
 }
 
 func TestFormat_ContainsAllFields(t *testing.T) {
-	s := submission.New("Jane Smith", "jane@example.com", "+61400000000", "Website inquiry", "Hello there", "Support", fixedTime)
+	s := submission.New("Jane Smith", "jane@example.com", "+61400000000", "Website inquiry", "Hello there", "Support", "", fixedTime)
 	got := submission.Format(s)
 
 	mustContain := []string{
@@ -126,7 +126,7 @@ func TestFormat_ContainsAllFields(t *testing.T) {
 }
 
 func TestFormat_EmptyBodyOmitted(t *testing.T) {
-	s := submission.New("", "jane@example.com", "", "Hello", "", "", fixedTime)
+	s := submission.New("", "jane@example.com", "", "Hello", "", "", "", fixedTime)
 	got := submission.Format(s)
 	if strings.Contains(got, "Body:") {
 		t.Errorf("Format() should omit Body section when body is empty\nGot:\n%s", got)
@@ -134,7 +134,7 @@ func TestFormat_EmptyBodyOmitted(t *testing.T) {
 }
 
 func TestFilename_Format(t *testing.T) {
-	s := submission.New("", "jane@example.com", "", "Hi", "", "", fixedTime)
+	s := submission.New("", "jane@example.com", "", "Hi", "", "", "", fixedTime)
 	name := submission.Filename(s)
 	pattern := regexp.MustCompile(`^\d{8}-\d{6}-[a-z0-9]{6}\.txt$`)
 	if !pattern.MatchString(name) {
@@ -143,7 +143,7 @@ func TestFilename_Format(t *testing.T) {
 }
 
 func TestFilename_UsesUTC(t *testing.T) {
-	s := submission.New("", "jane@example.com", "", "Hi", "", "", fixedTime)
+	s := submission.New("", "jane@example.com", "", "Hi", "", "", "", fixedTime)
 	name := submission.Filename(s)
 	if !strings.HasPrefix(name, "20260331-140522-") {
 		t.Errorf("Filename() = %q, expected prefix 20260331-140522-", name)
@@ -151,7 +151,7 @@ func TestFilename_UsesUTC(t *testing.T) {
 }
 
 func TestFilename_Unique(t *testing.T) {
-	s := submission.New("", "jane@example.com", "", "Hi", "", "", fixedTime)
+	s := submission.New("", "jane@example.com", "", "Hi", "", "", "", fixedTime)
 	names := make(map[string]struct{}, 100)
 	for i := 0; i < 100; i++ {
 		n := submission.Filename(s)

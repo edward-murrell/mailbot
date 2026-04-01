@@ -12,6 +12,7 @@ import (
 // After construction via New, its fields must not be modified.
 type Submission struct {
 	ReceivedAt time.Time
+	Site       string
 	Name       string
 	Email      string
 	Phone      string
@@ -22,9 +23,10 @@ type Submission struct {
 
 // New constructs a Submission stamped with the given time.
 // All string inputs are whitespace-trimmed. Validation is a separate step: call Validate.
-func New(name, email, phone, subject, body, reason string, receivedAt time.Time) Submission {
+func New(name, email, phone, subject, body, reason, site string, receivedAt time.Time) Submission {
 	return Submission{
 		ReceivedAt: receivedAt,
+		Site:       strings.TrimSpace(site),
 		Name:       strings.TrimSpace(name),
 		Email:      strings.TrimSpace(email),
 		Phone:      strings.TrimSpace(phone),
@@ -80,6 +82,9 @@ func Validate(s Submission) ValidationErrors {
 func Format(s Submission) string {
 	var sb strings.Builder
 	fmt.Fprintf(&sb, "Date:    %s\n", s.ReceivedAt.UTC().Format(time.RFC3339))
+	if s.Site != "" {
+		fmt.Fprintf(&sb, "Site:    %s\n", s.Site)
+	}
 	fmt.Fprintf(&sb, "Name:    %s\n", s.Name)
 	fmt.Fprintf(&sb, "Email:   %s\n", s.Email)
 	fmt.Fprintf(&sb, "Phone:   %s\n", s.Phone)

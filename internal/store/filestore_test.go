@@ -19,7 +19,7 @@ var fixedTime = time.Date(2026, 3, 31, 14, 5, 22, 0, time.UTC)
 func TestFileStore_Save(t *testing.T) {
 	dir := t.TempDir()
 	fs := store.NewFileStore(config.StorageConfig{Dir: dir})
-	sub := submission.New("Jane Smith", "jane@example.com", "+61400000000", "Website inquiry", "Hello there", "Support", fixedTime)
+	sub := submission.New("Jane Smith", "jane@example.com", "+61400000000", "Website inquiry", "Hello there", "Support", "", fixedTime)
 
 	if err := fs.Save(context.Background(), sub); err != nil {
 		t.Fatalf("Save: %v", err)
@@ -50,7 +50,7 @@ func TestFileStore_Save(t *testing.T) {
 func TestFileStore_Save_NoTmpFileLeft(t *testing.T) {
 	dir := t.TempDir()
 	fs := store.NewFileStore(config.StorageConfig{Dir: dir})
-	sub := submission.New("", "jane@example.com", "", "Hi", "", "", fixedTime)
+	sub := submission.New("", "jane@example.com", "", "Hi", "", "", "", fixedTime)
 
 	if err := fs.Save(context.Background(), sub); err != nil {
 		t.Fatalf("Save: %v", err)
@@ -72,7 +72,7 @@ func TestFileStore_Save_ContextCancelled(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	sub := submission.New("", "jane@example.com", "", "Hi", "", "", fixedTime)
+	sub := submission.New("", "jane@example.com", "", "Hi", "", "", "", fixedTime)
 	if err := fs.Save(ctx, sub); err == nil {
 		t.Error("expected error with cancelled context, got nil")
 	}

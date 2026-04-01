@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"sync"
 	"time"
 
@@ -46,7 +47,8 @@ func (h *ContactHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sub := submission.New(req.Name, req.Email, req.Phone, req.Subject, req.Body, req.Reason, time.Now().UTC())
+	site := sourceSite(r)
+	sub := submission.New(req.Name, req.Email, req.Phone, req.Subject, req.Body, req.Reason, site, time.Now().UTC())
 
 	if ve := submission.Validate(sub); ve != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "errors": map[string]string(ve)})
@@ -91,6 +93,22 @@ func writeJSON(w http.ResponseWriter, code int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
 	_ = json.NewEncoder(w).Encode(v)
+}
+
+// sourceSite extracts the source website from the request's Origin or Referer
+// header. Origin is preferred because it is always sent on cross-origin POST
+// requests and contains only scheme+host (no path). Referer is the fallback;
+// only scheme+host are kept. Returns "" if neither header is present.
+func sourceSite(r *http.Request) string {
+	if origin := r.Header.Get("Origin"); origin != "" {
+		return origin
+	}
+	if ref := r.Header.Get("Referer"); ref != "" {
+		if u, err := url.Parse(ref); err == nil && u.Host != "" {
+			return u.Scheme + "://" + u.Host
+		}
+	}
+	return ""
 }
 
 // compile-time interface check
