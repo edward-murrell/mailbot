@@ -130,17 +130,31 @@ View received messages at http://localhost:8025.
 
 ## Docker
 
-Build and run directly:
+Pre-built multi-arch images (`linux/amd64`, `linux/arm64`) are published to GitHub Container Registry on each release:
+
+```
+ghcr.io/edward-murrell/mailbot:0.1.0     # exact version — pin this for reproducible deploys
+ghcr.io/edward-murrell/mailbot:0.1       # latest patch in the 0.1.x line
+ghcr.io/edward-murrell/mailbot:latest    # most recent stable release
+```
+
+While the project is pre-1.0, minor version bumps (`0.1` → `0.2`) may include breaking changes. Track `:0.1` to receive patch fixes only, or pin `:0.1.0` for full lock-in.
 
 ```bash
-docker build -t mailbot .
+docker pull ghcr.io/edward-murrell/mailbot:0.1.0
 
 docker run \
   -e SMTP_ENABLED=false \
   -e STORAGE_DIR=/data \
   -v mailbot-data:/data \
   -p 8080:8080 \
-  mailbot
+  ghcr.io/edward-murrell/mailbot:0.1.0
+```
+
+Or build locally from source:
+
+```bash
+docker build -t mailbot .
 ```
 
 ## Production deployment
