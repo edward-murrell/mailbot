@@ -4,6 +4,20 @@ A Go HTTP daemon that exposes a single REST endpoint for contact form submission
 
 Designed to run as a Docker container behind a TLS-terminating reverse proxy.
 
+## Why mailbot?
+
+Static sites and SPAs have no backend to receive a contact requests. Existing solutions such as Formspree, Netlify Forms, require dependency on a third party. mailbot is a simple solution for self-hosters with minimal configuration and a small footprint.
+
+Typical deployments:
+
+- **Static sites** (Hugo, Astro, 11ty, plain HTML) needing a contact form without a CMS.
+- **SPAs** (React, Vue, Svelte) on a CDN, where the form is the only server-side need.
+- **Small business sites** where submissions go to the operator's inbox and stay on their own server, not a SaaS dashboard.
+- **Internal tools** needing a lightweight "send feedback" or "request access" form.
+- **Replacing PHP `mail()` scripts** during migration off shared hosting — same shape, but containerised and rate-limited.
+
+The on-disk copy is an audit trail and a recovery path if SMTP bounces or a message is caught in spam.
+
 ## Quick start
 
 ```bash
@@ -135,3 +149,41 @@ docker run \
 - Mount a persistent volume at `STORAGE_DIR` so submissions survive restarts.
 - Set `RATE_LIMIT_INTERVAL` to suit your expected traffic pattern.
 - Ensure your reverse proxy sets `X-Real-IP` or `X-Forwarded-For` so rate limiting works correctly.
+
+### nginx
+
+```nginx
+server {
+    listen 443 ssl http2;
+    server_name example.com;
+
+    ssl_certificate     /etc/letsencrypt/live/example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/example.com/privkey.pem;
+
+    location = /contact {
+        limit_except POST { deny all; }
+
+        proxy_pass         http://127.0.0.1:8080;
+        proxy_set_header   Host              $host;
+        proxy_set_header   X-Real-IP         $remote_addr;
+        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+### Caddy
+
+```caddy
+example.com {
+    @contact {
+        path   /contact
+        method POST
+    }
+    reverse_proxy @contact 127.0.0.1:8080
+
+    # ... other routes (static site, SPA, etc.)
+}
+```
+
+Caddy handles TLS automatically via Let's Encrypt and sets `X-Forwarded-For` by default.
