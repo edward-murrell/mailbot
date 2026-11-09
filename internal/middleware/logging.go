@@ -19,7 +19,7 @@ func (r *statusRecorder) WriteHeader(code int) {
 
 // Logger returns a middleware that logs each request at Info level.
 // Logged fields: method, path, status, duration_ms, ip.
-func Logger(logger *slog.Logger) func(http.Handler) http.Handler {
+func Logger(logger *slog.Logger, ips *IPResolver) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			start := time.Now()
@@ -30,7 +30,7 @@ func Logger(logger *slog.Logger) func(http.Handler) http.Handler {
 				"path", r.URL.Path,
 				"status", rec.status,
 				"duration_ms", time.Since(start).Milliseconds(),
-				"ip", clientIP(r),
+				"ip", ips.ClientIP(r),
 			)
 		})
 	}

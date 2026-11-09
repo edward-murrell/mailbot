@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/netip"
 	"strings"
 
 	"github.com/caarlos0/env/v11"
@@ -22,6 +23,13 @@ type Config struct {
 // ServerConfig holds HTTP server settings.
 type ServerConfig struct {
 	ListenAddr string `env:"LISTEN_ADDR" envDefault:":8080"`
+
+	// TrustedProxiesRaw lists the IPs or CIDR ranges allowed to set
+	// X-Real-IP and X-Forwarded-For. The default trusts every peer, which
+	// suits a container that only the reverse proxy can reach. Set "none"
+	// to trust no peers.
+	TrustedProxiesRaw []string       `env:"TRUSTED_PROXIES" envSeparator:"," envDefault:"0.0.0.0/0,::/0"`
+	TrustedProxies    []netip.Prefix // computed from TrustedProxiesRaw in Load
 }
 
 // SMTP security modes for SMTPConfig.Security.
@@ -83,6 +91,13 @@ func Load() (*Config, error) {
 		errs = append(errs, fmt.Sprintf("LOG_LEVEL: unknown level %q", cfg.Log.LevelRaw))
 	}
 
+	// Parse trusted proxy addresses and ranges.
+	trusted, err := parsePrefixes(cfg.Server.TrustedProxiesRaw)
+	if err != nil {
+		errs = append(errs, "TRUSTED_PROXIES: "+err.Error())
+	}
+	cfg.Server.TrustedProxies = trusted
+
 	// Validate rate limit interval.
 	if cfg.RateLimit.Interval < 1 {
 		errs = append(errs, "RATE_LIMIT_INTERVAL: must be a positive integer")
@@ -115,4 +130,31 @@ func Load() (*Config, error) {
 		return nil, errors.New(strings.Join(errs, "\n"))
 	}
 	return &cfg, nil
+}
+
+// parsePrefixes parses a list of IPs or CIDR ranges. A bare IP becomes a
+// single-address prefix. Empty and "none" entries are ignored.
+func parsePrefixes(raw []string) ([]netip.Prefix, error) {
+	var out []netip.Prefix
+	for _, v := range raw {
+		v = strings.TrimSpace(v)
+		if v == "" || strings.EqualFold(v, "none") {
+			continue
+		}
+		if strings.Contains(v, "/") {
+			p, err := netip.ParsePrefix(v)
+			if err != nil {
+				return nil, fmt.Errorf("invalid CIDR %q", v)
+			}
+			out = append(out, p.Masked())
+			continue
+		}
+		a, err := netip.ParseAddr(v)
+		if err != nil {
+			return nil, fmt.Errorf("invalid IP %q", v)
+		}
+		a = a.Unmap()
+		out = append(out, netip.PrefixFrom(a, a.BitLen()))
+	}
+	return out, nil
 }

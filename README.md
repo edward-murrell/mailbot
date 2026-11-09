@@ -66,6 +66,7 @@ All configuration is via environment variables.
 | Variable              | Default   | Description |
 |-----------------------|-----------|-------------|
 | `LISTEN_ADDR`         | `:8080`   | Bind address |
+| `TRUSTED_PROXIES`     | `0.0.0.0/0,::/0` | Comma-separated IPs or CIDR ranges allowed to set `X-Real-IP` and `X-Forwarded-For`. Set `none` to ignore those headers |
 | `SMTP_ENABLED`        | `true`    | Set `false` to skip sending (local dev) |
 | `SMTP_HOST`           | required* | SMTP server hostname |
 | `SMTP_PORT`           | `587`     | SMTP server port |
@@ -163,6 +164,7 @@ docker build -t mailbot .
 - Mount a persistent volume at `STORAGE_DIR` so submissions survive restarts.
 - Set `RATE_LIMIT_INTERVAL` to suit your expected traffic pattern.
 - Ensure your reverse proxy sets `X-Real-IP` or `X-Forwarded-For` so rate limiting works correctly.
+- Set `TRUSTED_PROXIES` to your proxy's address if anything other than the proxy can reach mailbot. Otherwise clients can set those headers themselves and avoid rate limiting.
 
 ### nginx
 

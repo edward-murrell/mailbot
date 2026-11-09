@@ -2,9 +2,7 @@ package middleware
 
 import (
 	"fmt"
-	"net"
 	"net/http"
-	"strings"
 	"sync"
 	"time"
 
@@ -21,6 +19,7 @@ type RateLimiter struct {
 	mu       sync.Mutex
 	entries  map[string]*rateLimitEntry
 	interval time.Duration
+	ips      *IPResolver
 }
 
 type rateLimitEntry struct {
@@ -29,21 +28,22 @@ type rateLimitEntry struct {
 }
 
 // NewRateLimiter creates a RateLimiter allowing one request per interval per IP.
-func NewRateLimiter(interval time.Duration) *RateLimiter {
+// ips decides which address a request counts against.
+func NewRateLimiter(interval time.Duration, ips *IPResolver) *RateLimiter {
 	return &RateLimiter{
 		entries:  make(map[string]*rateLimitEntry),
 		interval: interval,
+		ips:      ips,
 	}
 }
 
 // Middleware returns an http.Handler middleware that enforces the rate limit.
 // Exceeded requests receive 429 Too Many Requests with a Retry-After header.
 //
-// IP extraction honours X-Real-IP and X-Forwarded-For headers set by upstream
-// reverse proxies. See clientIP for extraction priority and trust assumptions.
+// See IPResolver.ClientIP for how the client IP is chosen.
 func (rl *RateLimiter) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ip := clientIP(r)
+		ip := rl.ips.ClientIP(r)
 		if !rl.allow(ip) {
 			w.Header().Set("Retry-After", fmt.Sprintf("%d", int(rl.interval.Seconds())))
 			w.Header().Set("Content-Type", "application/json")
@@ -67,32 +67,4 @@ func (rl *RateLimiter) allow(ip string) bool {
 	}
 	e.lastSeen = time.Now()
 	return e.limiter.Allow()
-}
-
-// clientIP extracts the real client IP from the request.
-//
-// Priority:
-//  1. X-Real-IP — set by nginx/Caddy as a single verified IP.
-//  2. First address in X-Forwarded-For — the original client IP prepended
-//     by the reverse proxy (assumed trusted in this deployment).
-//  3. r.RemoteAddr — the direct TCP connection address.
-//
-// Note: X-Forwarded-For can be spoofed if the reverse proxy does not strip
-// client-supplied values. This is a deployment concern, not a code concern.
-func clientIP(r *http.Request) string {
-	if v := r.Header.Get("X-Real-IP"); v != "" {
-		return strings.TrimSpace(v)
-	}
-	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		first, _, found := strings.Cut(xff, ",")
-		if found {
-			return strings.TrimSpace(first)
-		}
-		return strings.TrimSpace(xff)
-	}
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		return r.RemoteAddr
-	}
-	return host
 }

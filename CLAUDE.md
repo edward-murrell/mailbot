@@ -74,6 +74,7 @@ mailbot/
 | Variable              | Description                                          | Default        |
 |-----------------------|------------------------------------------------------|----------------|
 | `LISTEN_ADDR`         | Address and port to bind                             | `:8080`        |
+| `TRUSTED_PROXIES`     | IPs/CIDRs allowed to set `X-Real-IP`/`X-Forwarded-For`, or `none` | `0.0.0.0/0,::/0` |
 | `SMTP_HOST`           | SMTP server hostname                                 | required       |
 | `SMTP_PORT`           | SMTP server port                                     | `587`          |
 | `SMTP_USER`           | SMTP username                                        | required       |
@@ -131,7 +132,7 @@ Middleware lives in `internal/middleware/` and is composed in `cmd/mailbot/main.
 ### Rate limiting
 - Per-IP, token bucket or sliding window — one submission per `RATE_LIMIT_INTERVAL` seconds (default 5)
 - Returns `429 Too Many Requests` with a `Retry-After` header when exceeded
-- IP extraction must handle `X-Forwarded-For` / `X-Real-IP` headers (set by the upstream reverse proxy)
+- IP extraction must handle `X-Forwarded-For` / `X-Real-IP` headers (set by the upstream reverse proxy), but only from peers in `TRUSTED_PROXIES`
 
 ### Other middleware
 - Request logging (method, path, status, duration)

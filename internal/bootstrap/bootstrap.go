@@ -74,9 +74,10 @@ func MakeMailer(cfg config.SMTPConfig, logger *slog.Logger) mailer.Mailer {
 func makeHandler(cfg *config.Config, m mailer.Mailer, s store.Store, logger *slog.Logger) http.Handler {
 	mux := http.NewServeMux()
 	mux.Handle("/contact", handler.New(m, s, logger))
-	rateLimiter := middleware.NewRateLimiter(time.Duration(cfg.RateLimit.Interval) * time.Second)
+	ips := middleware.NewIPResolver(cfg.Server.TrustedProxies)
+	rateLimiter := middleware.NewRateLimiter(time.Duration(cfg.RateLimit.Interval)*time.Second, ips)
 	return middleware.Recovery(logger)(
-		middleware.Logger(logger)(
+		middleware.Logger(logger, ips)(
 			rateLimiter.Middleware(mux),
 		),
 	)
