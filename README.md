@@ -167,10 +167,15 @@ docker build -t mailbot .
 
 ## Debian package
 
-Each release attaches `.deb` packages for `amd64` and `arm64` to its GitHub release.
+Each release attaches `.deb` packages for `amd64` and `arm64` to its GitHub release. To download and install the latest one:
 
 ```bash
-sudo apt install ./mailbot_0.2.0_amd64.deb
+MAILBOT_VERSION=$(curl -fsSL https://api.github.com/repos/edward-murrell/mailbot/releases/latest \
+  | sed -n 's/.*"tag_name": *"v\([^"]*\)".*/\1/p')
+DEB=mailbot_${MAILBOT_VERSION}_$(dpkg --print-architecture).deb
+
+curl -fLO https://github.com/edward-murrell/mailbot/releases/download/v${MAILBOT_VERSION}/${DEB}
+sudo apt install ./${DEB}
 sudoedit /etc/mailbot/mailbot.env
 sudo systemctl enable --now mailbot
 ```
@@ -187,8 +192,11 @@ Logs go to the journal: `journalctl -u mailbot`. Removing or purging the package
 To build a package locally, install [nfpm](https://nfpm.goreleaser.com/) and run:
 
 ```bash
-CGO_ENABLED=0 GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o dist/mailbot ./cmd/mailbot
-VERSION=0.2.0 GOARCH=amd64 nfpm package -f build/package/nfpm.yaml -p deb -t dist/
+export GOARCH=$(go env GOARCH)
+export VERSION=$(git describe --tags --abbrev=0 | sed 's/^v//')
+
+CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o dist/mailbot ./cmd/mailbot
+nfpm package -f build/package/nfpm.yaml -p deb -t dist/
 ```
 
 ## Production deployment
