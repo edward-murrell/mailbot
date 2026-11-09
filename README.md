@@ -131,25 +131,32 @@ View received messages at http://localhost:8025.
 
 ## Docker
 
+[![Latest release](https://img.shields.io/github/v/release/edward-murrell/mailbot?label=latest%20release)](https://github.com/edward-murrell/mailbot/releases/latest)
+
 Pre-built multi-arch images (`linux/amd64`, `linux/arm64`) are published to GitHub Container Registry on each release:
 
 ```
-ghcr.io/edward-murrell/mailbot:0.1.0     # exact version — pin this for reproducible deploys
-ghcr.io/edward-murrell/mailbot:0.1       # latest patch in the 0.1.x line
+ghcr.io/edward-murrell/mailbot:X.Y.Z     # exact version — pin this for reproducible deploys
+ghcr.io/edward-murrell/mailbot:X.Y       # latest patch in the X.Y line
 ghcr.io/edward-murrell/mailbot:latest    # most recent stable release
 ```
 
-While the project is pre-1.0, minor version bumps (`0.1` → `0.2`) may include breaking changes. Track `:0.1` to receive patch fixes only, or pin `:0.1.0` for full lock-in.
+While the project is pre-1.0, minor version bumps (for example `0.2` → `0.3`) may include breaking changes. Track `:X.Y` to receive patch fixes only, or pin `:X.Y.Z` for full lock-in.
+
+The latest version is shown in the badge above. To look it up from a shell:
 
 ```bash
-docker pull ghcr.io/edward-murrell/mailbot:0.1.0
+MAILBOT_VERSION=$(curl -fsSL https://api.github.com/repos/edward-murrell/mailbot/releases/latest \
+  | sed -n 's/.*"tag_name": *"v\([^"]*\)".*/\1/p')
+
+docker pull ghcr.io/edward-murrell/mailbot:$MAILBOT_VERSION
 
 docker run \
   -e SMTP_ENABLED=false \
   -e STORAGE_DIR=/data \
   -v mailbot-data:/data \
   -p 8080:8080 \
-  ghcr.io/edward-murrell/mailbot:0.1.0
+  ghcr.io/edward-murrell/mailbot:$MAILBOT_VERSION
 ```
 
 Or build locally from source:
