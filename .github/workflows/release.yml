@@ -66,12 +66,15 @@ jobs:
           GOARCH: ${{ matrix.goarch }}
         run: go build -trimpath -ldflags="-s -w" -o dist/mailbot ./cmd/mailbot
 
+      # Install nfpm for the runner's own architecture. Setting GOARCH here
+      # would cross-compile it into a directory that is not on the PATH.
+      - name: Install nfpm
+        run: go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.41.0
+
       - name: Build .deb
         env:
           GOARCH: ${{ matrix.goarch }}
-        run: |
-          go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.41.0
-          VERSION="${GITHUB_REF_NAME#v}" nfpm package -f build/package/nfpm.yaml -p deb -t dist/
+        run: VERSION="${GITHUB_REF_NAME#v}" nfpm package -f build/package/nfpm.yaml -p deb -t dist/
 
       - uses: actions/upload-artifact@v4
         with:
