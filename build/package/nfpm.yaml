@@ -1,0 +1,58 @@
+# Builds the mailbot .deb. Run from the repository root:
+#   CGO_ENABLED=0 GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o dist/mailbot ./cmd/mailbot
+#   VERSION=0.2.0 GOARCH=amd64 nfpm package -f build/package/nfpm.yaml -p deb -t dist/
+name: mailbot
+arch: ${GOARCH}
+platform: linux
+version: ${VERSION}
+section: mail
+priority: optional
+maintainer: Edward Murrell <edward@murrell.co.nz>
+homepage: https://github.com/edward-murrell/mailbot
+description: |-
+  Contact form relay for static sites and SPAs.
+  mailbot accepts contact form submissions as JSON on POST /contact.
+  It emails each one via SMTP and saves a plain-text copy to disk.
+  Run it behind a reverse proxy that handles TLS.
+
+contents:
+  - src: ./dist/mailbot
+    dst: /usr/bin/mailbot
+    file_info:
+      mode: 0755
+
+  - src: ./init/mailbot.service
+    dst: /usr/lib/systemd/system/mailbot.service
+    file_info:
+      mode: 0644
+
+  - src: ./init/mailbot@.service
+    dst: /usr/lib/systemd/system/mailbot@.service
+    file_info:
+      mode: 0644
+
+  - dst: /etc/mailbot
+    type: dir
+    file_info:
+      mode: 0755
+
+  - src: ./configs/mailbot.env
+    dst: /etc/mailbot/mailbot.env
+    type: config|noreplace
+    file_info:
+      mode: 0640
+
+  - src: ./build/package/copyright
+    dst: /usr/share/doc/mailbot/copyright
+    file_info:
+      mode: 0644
+
+  - src: ./README.md
+    dst: /usr/share/doc/mailbot/README.md
+    file_info:
+      mode: 0644
+
+scripts:
+  postinstall: ./build/package/scripts/postinstall.sh
+  preremove: ./build/package/scripts/preremove.sh
+  postremove: ./build/package/scripts/postremove.sh

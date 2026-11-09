@@ -27,6 +27,10 @@ mailbot/
 │   ├── store/               # submission file writing
 │   ├── middleware/          # rate limiting, logging, recovery
 │   └── submission/          # Submission type and field validation
+├── build/
+│   └── package/             # nfpm config and maintainer scripts for the .deb
+├── configs/                 # default env file shipped in the .deb
+├── init/                    # systemd units
 ├── Dockerfile
 ├── docker-compose.yml       # for local development
 ├── CLAUDE.md
@@ -155,6 +159,12 @@ Run tests: `go test ./...`
 - Container runs as a non-root user
 - Expose port `8080`
 - No TLS certificates in the container
+
+## Debian package
+
+- Built with nfpm from `build/package/nfpm.yaml` in the release workflow, for amd64 and arm64
+- Attached to the GitHub release for each `v*.*.*` tag
+- The systemd units use `DynamicUser` and `StateDirectory`, so the package creates no users
 
 ## Non-goals
 

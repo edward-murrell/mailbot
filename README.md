@@ -158,6 +158,32 @@ Or build locally from source:
 docker build -t mailbot .
 ```
 
+## Debian package
+
+Each release attaches `.deb` packages for `amd64` and `arm64` to its GitHub release.
+
+```bash
+sudo apt install ./mailbot_0.2.0_amd64.deb
+sudoedit /etc/mailbot/mailbot.env
+sudo systemctl enable --now mailbot
+```
+
+The package installs:
+
+- `/usr/bin/mailbot`
+- `/etc/mailbot/mailbot.env`, the configuration. It listens on `127.0.0.1:8080` and trusts proxy headers from loopback only.
+- `mailbot.service`, which runs as a dynamic user and stores submissions in `/var/lib/mailbot`.
+- `mailbot@.service`, for running one instance per site. Instance `example` reads `/etc/mailbot/example.env` and stores submissions in `/var/lib/mailbot-example`.
+
+Logs go to the journal: `journalctl -u mailbot`. Removing or purging the package keeps stored submissions.
+
+To build a package locally, install [nfpm](https://nfpm.goreleaser.com/) and run:
+
+```bash
+CGO_ENABLED=0 GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o dist/mailbot ./cmd/mailbot
+VERSION=0.2.0 GOARCH=amd64 nfpm package -f build/package/nfpm.yaml -p deb -t dist/
+```
+
 ## Production deployment
 
 - Place behind a reverse proxy (nginx, Caddy, Traefik) that handles TLS.
@@ -203,3 +229,7 @@ example.com {
 ```
 
 Caddy handles TLS automatically via Let's Encrypt and sets `X-Forwarded-For` by default.
+
+## Licence
+
+mailbot is licensed under the GNU General Public License v3.0. See [LICENSE](LICENSE).
